@@ -1,0 +1,7 @@
+Dataset Size,Sequential Score,Parallel Score,Match
+100,170,170,true
+500,860,860,true
+1000,1731,1731,true
+2000,3443,3443,true
+5000,8634,8634,true
+10000,17303,17303,true
