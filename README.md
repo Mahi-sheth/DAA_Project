@@ -1,79 +1,82 @@
-# Needleman-Wunsch Parallelization Project
+# Needleman-Wunsch Sequence Alignment
 
-## Project Overview
+This project contains sequential and parallel Java implementations of
+global DNA sequence alignment. Both use match `+1`, mismatch `-1`, and gap
+`-2` scores. The sequential implementation builds the full dynamic-programming
+matrix and reconstructs an alignment. The parallel implementation computes
+the alignment score using wavefront (anti-diagonal) processing.
 
-This project implements the Needleman-Wunsch global sequence
-alignment algorithm using Java.
+## Data and Tests
 
-The project contains:
+`src/RealDatasetProcessor.java` reads `ecoli.fasta`, ignores FASTA headers,
+keeps only A, T, C, and G, and writes paired files in `datasets/` for lengths
+100, 500, 1000, 2000, 5000, and 10000. For each length, sequence A starts at
+base 0 and sequence B starts at base 500.
 
-1. Sequential Needleman-Wunsch implementation
-2. Parallel wavefront Needleman-Wunsch implementation
-3. DNA dataset generation
-4. Correctness testing
-5. Performance analysis
-
-## Problem Definition
-
-Needleman-Wunsch uses dynamic programming for global sequence
-alignment.
-
-As the sequence size increases, the number of DP matrix cells
-increases significantly.
-
-Therefore, the project studies whether parallel wavefront
-processing can improve execution performance.
-
-## Objectives
-
-- Implement Needleman-Wunsch sequentially.
-- Implement parallel wavefront processing.
-- Generate DNA datasets of different sizes.
-- Validate sequential and parallel results.
-- Measure execution time.
-- Calculate speedup and efficiency.
-- Analyze parallel performance.
-
-## Dataset Sizes
-
-- 100
-- 500
-- 1000
-- 2000
-- 5000
-- 10000
-
-## DNA Characters
-
-A, T, C, G
+`src/CorrectnessTester.java` reads those pairs, compares sequential and
+parallel scores at thread counts 1, 2, 4, and 8, and overwrites
+`results/correctness.csv`. It compares scores; it does not validate dataset
+characters or lengths.
 
 ## Requirements
 
-- Java JDK
-- VS Code
-- Python 3 (if Python dataset generation is used)
+- A Java JDK
+- Python 3, pandas, and matplotlib to generate graphs
 
-## Compilation
+Run commands from the project root.
 
-javac src/NeedlemanWunschSequential.java
+## Compile
 
-javac src/NeedlemanWunschParallel.java
+```sh
+javac -d bin src/NeedlemanWunschSequential.java src/NeedlemanWunschParallel.java src/CorrectnessTester.java src/PerformanceAnalysis.java src/RealDatasetProcessor.java
+```
 
-javac src/DatasetGenerator.java
+## Run
 
-javac src/DatasetValidator.java
+Generate the dataset files from `ecoli.fasta`:
 
-## Dataset Generation
+```sh
+java -cp bin RealDatasetProcessor
+```
 
-java -cp src DatasetGenerator
+Run the score comparisons on those files:
 
-## Dataset Validation
+```sh
+java -cp bin CorrectnessTester
+```
 
-java -cp src DatasetValidator
+Run the sequential implementation's built-in examples, or benchmark random
+sequences with the two lengths supplied as arguments:
 
-## Execution
+```sh
+java -cp bin NeedlemanWunschSequential
+java -cp bin NeedlemanWunschSequential 1000 1000
+```
 
-Run the sequential and parallel programs
-using the same datasets.
+Run the parallel benchmark on random sequences. The optional second argument
+is a comma-separated thread list; if omitted, it uses 1, 2, 4, and 8 threads.
+The `-f` form reads two plain sequence files (not FASTA files):
 
-The sequential and parallel scores should match.
+```sh
+java -cp bin NeedlemanWunschParallel 1000 1,2,4,8
+java -cp bin NeedlemanWunschParallel -f datasets/data_100_A.txt datasets/data_100_B.txt 1,2,4,8
+```
+
+## Performance Results
+
+`NeedlemanWunschParallel` prints CSV-formatted measurements to standard output;
+it does not write `results/performance.csv`. `PerformanceAnalysis` reads that
+file, prints its rows and best speedup, and overwrites
+`results/performance_summary.csv`:
+
+```sh
+java -cp bin PerformanceAnalysis
+```
+
+`performance.py` also reads `results/performance.csv` and writes
+`execution_time.png`, `speedup.png`, and `efficiency.png` to
+`results/graphs/`:
+
+```sh
+python performance.py
+```

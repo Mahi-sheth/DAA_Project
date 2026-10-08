@@ -1,10 +1,11 @@
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class CorrectnessTester {
 
-    static int[] DATASET_SIZES = {
+    static final int[] SIZES = {
         100,
         500,
         1000,
@@ -13,82 +14,169 @@ public class CorrectnessTester {
         10000
     };
 
+    static String readSequence(String fileName)
+            throws IOException {
+
+        return new String(
+            Files.readAllBytes(Paths.get(fileName))
+        ).replaceAll("\\s+", "")
+         .toUpperCase();
+    }
+
+    static int getSequentialScore(
+            String sequenceA,
+            String sequenceB) {
+
+        int[][] matrix =
+            NeedlemanWunschSequential
+            .buildMatrix(sequenceA, sequenceB);
+
+        return matrix[
+            sequenceA.length()
+        ][
+            sequenceB.length()
+        ];
+    }
+
+    static int getParallelScore(
+            String sequenceA,
+            String sequenceB,
+            int threads)
+            throws Exception {
+
+        byte[] a =
+            sequenceA.getBytes();
+
+        byte[] b =
+            sequenceB.getBytes();
+
+        return NeedlemanWunschParallel
+                .parallelScore(
+                    a,
+                    b,
+                    threads
+                );
+    }
+
     public static void main(String[] args) {
 
         try {
 
-            File resultsDirectory = new File("results");
-
-            if (!resultsDirectory.exists()) {
-                resultsDirectory.mkdirs();
-            }
-
             FileWriter writer =
-                    new FileWriter("results/correctness.csv");
+                new FileWriter(
+                    "results/correctness.csv"
+                );
 
             writer.write(
-                "Dataset Size,Sequential Score,Parallel Score,Match\n"
+                "Size,Sequential Score," +
+                "Parallel Score,Threads,Match\n"
             );
 
-            for (int size : DATASET_SIZES) {
+            System.out.println(
+                "=========================================="
+            );
 
-                String file =
-                        "datasets/data_" + size + ".txt";
+            System.out.println(
+                "      NEEDLEMAN-WUNSCH CORRECTNESS"
+            );
 
+            System.out.println(
+                "=========================================="
+            );
+
+            for (int size : SIZES) {
+
+                String fileA =
+                    "datasets/data_" +
+                    size + "_A.txt";
+
+                String fileB =
+                    "datasets/data_" +
+                    size + "_B.txt";
+
+                String sequenceA =
+                    readSequence(fileA);
+
+                String sequenceB =
+                    readSequence(fileB);
+
+                System.out.println();
                 System.out.println(
-                    "\nTesting dataset: " + size
+                    "Dataset size: " + size
                 );
 
-                String[] sequences =
-                        NeedlemanWunschSequential
-                        .readDataset(file);
-
-                // Sequential
+                // Sequential score
                 int sequentialScore =
-                        NeedlemanWunschSequential
-                        .align(
-                            sequences[0],
-                            sequences[1]
+                    getSequentialScore(
+                        sequenceA,
+                        sequenceB
+                    );
+
+                // Test with 1, 2, 4 and 8 threads
+                int[] threadsList = {
+                    1, 2, 4, 8
+                };
+
+                for (int threads : threadsList) {
+
+                    int parallelScore =
+                        getParallelScore(
+                            sequenceA,
+                            sequenceB,
+                            threads
                         );
 
-                // Parallel using 4 threads
-                int parallelScore =
-                        NeedlemanWunschParallel
-                        .align(
-                            sequences[0],
-                            sequences[1],
-                            4
-                        );
+                    boolean match =
+                        sequentialScore
+                        == parallelScore;
 
-                boolean match =
-                        sequentialScore == parallelScore;
+                    System.out.println(
+                        "Threads: " +
+                        threads
+                    );
 
-                System.out.println(
-                    "Sequential Score: " +
-                    sequentialScore
-                );
+                    System.out.println(
+                        "Sequential Score: " +
+                        sequentialScore
+                    );
 
-                System.out.println(
-                    "Parallel Score: " +
-                    parallelScore
-                );
+                    System.out.println(
+                        "Parallel Score:   " +
+                        parallelScore
+                    );
 
-                System.out.println(
-                    "Match: " + match
-                );
+                    System.out.println(
+                        "Result: " +
+                        (match ? "PASS" : "FAIL")
+                    );
 
-                writer.write(
-                    size + "," +
-                    sequentialScore + "," +
-                    parallelScore + "," +
-                    match + "\n"
-                );
+                    writer.write(
+                        size + "," +
+                        sequentialScore + "," +
+                        parallelScore + "," +
+                        threads + "," +
+                        match + "\n"
+                    );
+                }
             }
 
             writer.close();
 
+            System.out.println();
             System.out.println(
-                "\nCorrectness testing completed."
+                "=========================================="
+            );
+
+            System.out.println(
+                "Correctness testing completed."
+            );
+
+            System.out.println(
+                "Results saved to results/correctness.csv"
+            );
+
+            System.out.println(
+                "=========================================="
             );
 
         } catch (Exception e) {
@@ -96,6 +184,8 @@ public class CorrectnessTester {
             System.out.println(
                 "Error: " + e.getMessage()
             );
+
+            e.printStackTrace();
         }
     }
 }
