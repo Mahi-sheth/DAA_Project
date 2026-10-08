@@ -35,9 +35,34 @@ Prompt record: Not yet provided for the sequential implementation in
 
 ## Fatima
 
-Prompt record: Not yet provided for the parallel wavefront implementation in
-`src/NeedlemanWunschParallel.java`.
+### LLM Prompts & Interactions
 
+#### 1. Algorithm Understanding
+> **Prompt:** Explain the recurrence dependencies of the Needleman-Wunsch DP table $D[i][j] = \max(D[i-1][j-1] + s(a[i], b[j]), D[i-1][j] + \text{gap}, D[i][j-1] + \text{gap})$. Why does row-wise or column-wise parallelization fail, and how does anti-diagonal processing ($d = i + j$) ensure that all cells on the same anti-diagonal can be evaluated concurrently without data dependencies?
+
+#### 2. Parallel Implementation
+> **Prompt:** Write a parallel Needleman-Wunsch implementation in Java using the anti-diagonal wavefront approach. Instead of submitting individual tasks per cell, use a fixed `ExecutorService` thread pool with $T$ threads and synchronize diagonal steps using a `CyclicBarrier`. Each thread should handle a contiguous chunk of cells on diagonal $d$.
+
+#### 3. Boundary Debugging & Memory Optimization
+> **Prompt:** When implementing the anti-diagonal wavefront using three rotating 1D array buffers (`pp`, `p`, `c`) for $O(N)$ memory space, how should boundary cells ($i = 0$ or $j = 0$) and gap penalties be initialized on each diagonal $d$? Explain how to map matrix coordinates $(i, j)$ into buffer array indices safely without encountering array out-of-bounds errors on small sequence lengths (e.g., $N = 1, 2, 7$).
+
+#### 4. Performance Optimization
+> **Prompt:** My cell-level parallel wavefront code produces correct scores, but the speedup is less than 1 (slower than sequential) due to thread synchronization overhead across $\approx 2N$ barriers. Explain why fine-grained barrier synchronization limits performance, and show how to implement a tiled/blocked wavefront algorithm ($B \times B$ blocks) to reduce the number of barriers to $\approx 2N / B$.
+
+---
+
+### Critical Evaluation & Design Decisions
+
+1. **Rejection of Micro-Tasking (Task-Per-Cell / `CompletableFuture`):**
+   * *Initial Suggestion:* Submitting an asynchronous task for every cell on the diagonal.
+   * *Reason for Rejection:* Creating $O(N \times M)$ task objects caused extreme allocation and scheduling overhead, leading to execution times $6\text{--}28\times$ slower than sequential execution.
+
+2. **Rejection of Row-Wise / Column-Wise Parallelization:**
+   * *Initial Consideration:* Evaluating matrix rows in parallel.
+   * *Reason for Rejection:* Cell $D[i][j]$ directly depends on $D[i][j-1]$ (left neighbor). Processing cells within the same row concurrently violates data dependencies and leads to race conditions.
+
+3. **Modification from Cell-Level to Tiled Wavefront ($B \times B$ Blocks):**
+   * *Refinement:* Cell-level wavefront required $\approx N + M$ `CyclicBarrier` synchronizations. By grouping cells into $B \times B$ tiles, barrier synchronization was reduced by a factor of $B$ (to $\approx (N + M) / B$), significantly mitigating thread contention.
 ---
 
 ## Maitreyi
